@@ -81,7 +81,19 @@
         <select id="voiceSelect" class="form-select mb-4"></select>
         <label class="form-label" for="modeSelect">Conversation mode</label>
         <select id="modeSelect" class="form-select mb-4"></select>
-        <p class="form-note">Voice and mode are locked while a meeting is active.</p>
+        <hr class="my-4">
+        <p class="eyebrow mb-2">Voice profile</p>
+        <p class="form-note mb-3">Reduce replies to nearby speakers by matching their voice to yours. This is a convenience filter, not secure biometric authentication.</p>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" id="voiceProfileEnabled" type="checkbox">
+          <label class="form-check-label" for="voiceProfileEnabled">Only reply to my voice</label>
+        </div>
+        <div class="d-flex gap-2 mb-2">
+          <button id="enrollVoiceButton" class="btn btn-outline-light flex-grow-1" type="button">Create voice profile</button>
+          <button id="removeVoiceButton" class="btn btn-outline-danger d-none" type="button">Remove</button>
+        </div>
+        <p id="voiceProfileStatus" class="form-note mb-4" aria-live="polite">No voice profile saved.</p>
+        <p class="form-note">Voice, mode, and voice-profile filtering are locked while a meeting is active.</p>
         <button class="btn btn-light w-100 py-3" type="submit">Save preferences</button>
       </form>
       <hr class="my-5">

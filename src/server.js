@@ -125,8 +125,19 @@ app.post("/api/realtime", requireAuth, async (req, res, next) => {
       output_modalities: ["audio"],
       audio: {
         input: {
-          transcription: { model: "gpt-4o-mini-transcribe" },
-          turn_detection: { type: "semantic_vad", eagerness: "auto", create_response: false, interrupt_response: true }
+          noise_reduction: { type: "far_field" },
+          transcription: {
+            model: "gpt-transcribe",
+            prompt: "This is a close-microphone conversation in English or European Portuguese. Ignore distant background conversations and crowd noise."
+          },
+          turn_detection: {
+            type: "server_vad",
+            threshold: 0.72,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 850,
+            create_response: false,
+            interrupt_response: false
+          }
         },
         output: { voice }
       }
