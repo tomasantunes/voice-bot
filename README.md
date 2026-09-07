@@ -1,4 +1,4 @@
-# One on One Voice
+# Voice Bot
 
 A private Express, Bootstrap 5, MySQL, and OpenAI Realtime API voice meeting app. It uses WebRTC for low-latency two-way audio, semantic voice activity detection for automatic turns and interruption, live transcripts, and MySQL persistence.
 
