@@ -122,6 +122,23 @@ app.post("/api/realtime", requireAuth, async (req, res, next) => {
       type: "realtime",
       model: process.env.OPENAI_REALTIME_MODEL || "gpt-realtime",
       instructions: buildInstructions(mode),
+      tools: [{
+        type: "function",
+        name: "search_web",
+        description: "Search the public web for current, recent, changing, niche, or explicitly requested information. Use this before answering questions whose answer may have changed or needs online verification.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "A concise, standalone web search query containing all context needed to answer the user's question."
+            }
+          },
+          required: ["query"],
+          additionalProperties: false
+        }
+      }],
+      tool_choice: "auto",
       output_modalities: ["audio"],
       audio: {
         input: {
@@ -154,6 +171,50 @@ app.post("/api/realtime", requireAuth, async (req, res, next) => {
       return res.status(502).json({ error: "Could not start the OpenAI voice session" });
     }
     res.type("application/sdp").set("X-Meeting-Id", String(meeting.insertId)).send(answer);
+  } catch (error) { next(error); }
+});
+
+function responseText(response) {
+  if (typeof response?.output_text === "string" && response.output_text.trim()) return response.output_text.trim();
+  return (response?.output || [])
+    .flatMap((item) => item?.content || [])
+    .filter((content) => content?.type === "output_text" && typeof content.text === "string")
+    .map((content) => content.text.trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+app.post("/api/web-search", requireAuth, async (req, res, next) => {
+  const query = req.body?.query?.trim();
+  if (typeof query !== "string" || !query || query.length > 1000) {
+    return res.status(400).json({ error: "Invalid search query" });
+  }
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_SEARCH_MODEL || "gpt-5-mini",
+        instructions: "Search the web and return concise, factual findings that directly answer the query. Prioritize authoritative and recent sources. Include dates when freshness matters. Do not address the end user or add conversational filler.",
+        input: query,
+        tools: [{ type: "web_search" }],
+        tool_choice: { type: "web_search" },
+        include: ["web_search_call.action.sources"],
+        max_tool_calls: 3,
+        max_output_tokens: 1200
+      })
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      console.error("OpenAI web search error", response.status, body);
+      return res.status(502).json({ error: "Web search is temporarily unavailable" });
+    }
+    const text = responseText(body);
+    if (!text) return res.status(502).json({ error: "Web search returned no answer" });
+    res.json({ text });
   } catch (error) { next(error); }
 });
 

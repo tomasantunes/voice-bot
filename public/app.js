@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 const VOICE_PROFILE_KEY = "one-on-one-voice-profile";
-const state = { pc: null, dc: null, stream: null, meetingId: null, settings: null, userText: new Map(), assistantText: new Map(), lastLanguage: "US English", started: false, voiceProfile: null, voiceProfileEnabled: false, audioContext: null, analyser: null, analyserTimer: null, capturingVoice: false, voiceFrames: [], pendingVoiceMatch: true, assistantSpeaking: false, sawOutputBufferEvent: false, microphoneFallbackTimer: null };
+const state = { pc: null, dc: null, stream: null, meetingId: null, settings: null, userText: new Map(), assistantText: new Map(), handledToolCalls: new Set(), toolCallInFlight: false, lastLanguage: "US English", started: false, voiceProfile: null, voiceProfileEnabled: false, audioContext: null, analyser: null, analyserTimer: null, capturingVoice: false, voiceFrames: [], pendingVoiceMatch: true, assistantSpeaking: false, sawOutputBufferEvent: false, microphoneFallbackTimer: null };
 const ui = {
   loginView: $("#loginView"), appView: $("#appView"), loginForm: $("#loginForm"), loginError: $("#loginError"),
   settingsForm: $("#settingsForm"), voice: $("#voiceSelect"), mode: $("#modeSelect"), start: $("#startButton"), end: $("#endButton"),
@@ -156,6 +156,32 @@ function requestResponse(transcript) {
   }));
 }
 
+async function runWebSearch(callId, argumentsJson) {
+  if (!callId || state.handledToolCalls.has(callId)) return;
+  state.handledToolCalls.add(callId);
+  state.toolCallInFlight = true;
+  setStatus("Searching the web…", "live");
+  let output;
+  try {
+    const parsed = JSON.parse(argumentsJson || "{}");
+    const { body } = await api("/api/web-search", {
+      method: "POST",
+      body: JSON.stringify({ query: parsed.query })
+    });
+    output = JSON.stringify({ ok: true, findings: body.text });
+  } catch (error) {
+    output = JSON.stringify({ ok: false, error: error.message || "Web search failed" });
+  }
+  state.toolCallInFlight = false;
+  if (state.dc?.readyState !== "open") return;
+  state.dc.send(JSON.stringify({
+    type: "conversation.item.create",
+    item: { type: "function_call_output", call_id: callId, output }
+  }));
+  state.dc.send(JSON.stringify({ type: "response.create", response: { output_modalities: ["audio"] } }));
+  setStatus("Thinking…", "live");
+}
+
 function microphoneConstraints() {
   const supported = navigator.mediaDevices.getSupportedConstraints?.() || {};
   const audio = {
@@ -278,6 +304,9 @@ function handleRealtime(event) {
     }
     state.userText.delete(event.item_id); state.pendingVoiceMatch = true;
   }
+  if (type === "response.function_call_arguments.done" && event.name === "search_web") {
+    runWebSearch(event.call_id, event.arguments);
+  }
   if (type === "response.output_audio_transcript.delta" || type === "response.audio_transcript.delta") {
     const id = event.item_id || event.response_id || "assistant-live";
     const next = (state.assistantText.get(id) || "") + (event.delta || ""); state.assistantText.set(id, next); addMessage("assistant", next, id, true); setAssistantSpeaking(true);
@@ -286,7 +315,7 @@ function handleRealtime(event) {
     const id = event.item_id || event.response_id || "assistant-live";
     const text = event.transcript || state.assistantText.get(id) || ""; addMessage("assistant", text, id); persist("assistant", text, id); state.assistantText.delete(id);
   }
-  if (type === "response.done" && !state.sawOutputBufferEvent) {
+  if (type === "response.done" && !state.sawOutputBufferEvent && !state.toolCallInFlight) {
     state.microphoneFallbackTimer = window.setTimeout(() => setAssistantSpeaking(false), 1500);
   }
   if (type === "error") { console.error(event); setAssistantSpeaking(false); showToast(event.error?.message || "Realtime connection error"); }
@@ -323,6 +352,8 @@ async function closeMedia() {
   stopVoiceAnalysis();
   state.dc?.close(); state.pc?.close(); state.stream?.getTracks().forEach((track) => track.stop()); ui.remoteAudio.srcObject = null;
   state.dc = state.pc = state.stream = null;
+  state.toolCallInFlight = false;
+  state.handledToolCalls.clear();
 }
 
 async function endMeeting() {

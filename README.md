@@ -19,9 +19,11 @@ The browser will request microphone permission when you start a meeting. In prod
 - `COOKIE_SECRET`: a random value of at least 32 characters.
 - `MYSQL_*`: database connection settings.
 - `OPENAI_REALTIME_MODEL`: defaults to `gpt-realtime`.
+- `OPENAI_SEARCH_MODEL`: model used to synthesize web-search findings; defaults to `gpt-5-mini`.
 
 ## Notes
 
 - Changing voice or mode affects the next meeting.
 - Transcript saves occur after OpenAI marks each user or assistant transcript complete.
 - Conversation audio is transported directly through the WebRTC session; this app stores text transcripts, not audio recordings.
+- The Realtime model automatically calls a server-side web-search tool for current, changing, niche, or explicitly requested online information.
