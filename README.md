@@ -19,7 +19,7 @@ The browser will request microphone permission when you start a meeting. In prod
 - `COOKIE_SECRET`: a random value of at least 32 characters.
 - `MYSQL_*`: database connection settings.
 - `OPENAI_REALTIME_MODEL`: defaults to `gpt-realtime`.
-- `OPENAI_SEARCH_MODEL`: model used to synthesize web-search findings; defaults to `gpt-5-mini`.
+- `OPENAI_SEARCH_MODEL`: model used to synthesize web-search findings; defaults to `gpt-5.4-mini`.
 
 ## Notes
 

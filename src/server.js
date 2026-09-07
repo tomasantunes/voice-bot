@@ -190,6 +190,7 @@ app.post("/api/web-search", requireAuth, async (req, res, next) => {
     return res.status(400).json({ error: "Invalid search query" });
   }
   try {
+    const currentDate = new Date().toISOString().slice(0, 10);
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -197,10 +198,10 @@ app.post("/api/web-search", requireAuth, async (req, res, next) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_SEARCH_MODEL || "gpt-5-mini",
-        instructions: "Search the web and return concise, factual findings that directly answer the query. Prioritize authoritative and recent sources. Include dates when freshness matters. Do not address the end user or add conversational filler.",
-        input: query,
-        tools: [{ type: "web_search" }],
+        model: process.env.OPENAI_SEARCH_MODEL || "gpt-5.4-mini",
+        instructions: `Today is ${currentDate}. You are the live research worker for a voice assistant. Always search the web for this request and treat fresh sources as authoritative over pretrained knowledge. Return concise factual findings that directly answer the query. Prioritize official company investor-relations pages, exchange data, regulatory filings, and reputable current reporting. For stocks or other traded securities, resolve the exact issuer, exchange, and ticker first, accounting for recent IPOs and name or ticker changes. Then report the latest available regular-session or extended-hours price with its currency, date, time or market-session label, and whether it is live, delayed, or the latest close when the source establishes that. Never conclude that a company is private from memory; verify its present listing status online. If an exact quote cannot be verified, report the verified ticker and listing status plus what specifically remains unavailable. Do not address the end user or add conversational filler.`,
+        input: `Research this request as of ${currentDate}: ${query}`,
+        tools: [{ type: "web_search", search_context_size: "high" }],
         tool_choice: { type: "web_search" },
         include: ["web_search_call.action.sources"],
         max_tool_calls: 3,
