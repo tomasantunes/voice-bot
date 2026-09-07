@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b10">
+  <title>One on One</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://api.openai.com">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main id="loginView" class="auth-shell d-none">
+    <section class="glass-card auth-card">
+      <div class="brand-mark mb-4" aria-hidden="true"><span></span></div>
+      <p class="eyebrow">Private space</p>
+      <h1 class="display-6 fw-semibold mb-2">Welcome back.</h1>
+      <p class="text-secondary mb-4">Sign in to begin your one-on-one.</p>
+      <form id="loginForm">
+        <div class="form-floating mb-3">
+          <input class="form-control" id="username" name="username" autocomplete="username" placeholder="Username" required>
+          <label for="username">Username</label>
+        </div>
+        <div class="form-floating mb-3">
+          <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" placeholder="Password" required>
+          <label for="password">Password</label>
+        </div>
+        <div id="loginError" class="alert alert-danger py-2 d-none" role="alert"></div>
+        <button class="btn btn-light w-100 py-3 fw-semibold" type="submit">Enter meeting</button>
+      </form>
+    </section>
+  </main>
+
+  <main id="appView" class="app-shell d-none">
+    <nav class="topbar">
+      <a class="brand" href="#" aria-label="One on One home">
+        <span class="brand-mark brand-mark-sm" aria-hidden="true"><span></span></span>
+        <span>one on one</span>
+      </a>
+      <div class="d-flex gap-2">
+        <button class="icon-button" id="historyButton" data-bs-toggle="offcanvas" data-bs-target="#historyPanel" aria-label="Meeting history">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5M12 7v5l3 2"/></svg>
+        </button>
+        <button class="icon-button" data-bs-toggle="offcanvas" data-bs-target="#settingsPanel" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <section class="meeting-stage">
+      <div class="status-line"><span id="statusDot" class="status-dot"></span><span id="statusText">Ready when you are</span></div>
+      <div id="orb" class="voice-orb" aria-hidden="true"><div class="orb-core"></div><div class="orb-ring ring-one"></div><div class="orb-ring ring-two"></div></div>
+      <div class="text-center">
+        <p id="activeMode" class="mode-label">Default</p>
+        <h1 id="headline">Your space to talk.</h1>
+        <p id="subhead" class="text-secondary">Start the meeting, then speak naturally. You can interrupt at any time.</p>
+      </div>
+      <div class="controls">
+        <button id="startButton" class="call-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 11v1a7 7 0 0 1-14 0v-1M12 19v3M8 22h8"/></svg>
+          <span>Start meeting</span>
+        </button>
+        <button id="endButton" class="call-button end-call d-none" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15.5c4.5-4 10.5-4 15 0M7 13l-2 4M17 13l2 4"/></svg>
+          <span>End meeting</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="transcript-shell">
+      <div class="transcript-header"><span>Live transcript</span><span id="saveState">Saved automatically</span></div>
+      <div id="transcript" class="transcript" aria-live="polite"><div class="empty-state">Your conversation will appear here.</div></div>
+    </section>
+  </main>
+
+  <aside class="offcanvas offcanvas-end" tabindex="-1" id="settingsPanel" aria-labelledby="settingsTitle">
+    <div class="offcanvas-header"><div><p class="eyebrow mb-1">Meeting setup</p><h2 id="settingsTitle" class="offcanvas-title">Settings</h2></div><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button></div>
+    <div class="offcanvas-body">
+      <form id="settingsForm">
+        <label class="form-label" for="voiceSelect">Voice</label>
+        <select id="voiceSelect" class="form-select mb-4"></select>
+        <label class="form-label" for="modeSelect">Conversation mode</label>
+        <select id="modeSelect" class="form-select mb-4"></select>
+        <p class="form-note">Voice and mode are locked while a meeting is active.</p>
+        <button class="btn btn-light w-100 py-3" type="submit">Save preferences</button>
+      </form>
+      <hr class="my-5">
+      <button id="logoutButton" class="btn btn-outline-secondary w-100">Sign out</button>
+    </div>
+  </aside>
+
+  <aside class="offcanvas offcanvas-start" tabindex="-1" id="historyPanel" aria-labelledby="historyTitle">
+    <div class="offcanvas-header"><div><p class="eyebrow mb-1">Past conversations</p><h2 id="historyTitle" class="offcanvas-title">Meeting history</h2></div><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button></div>
+    <div id="historyList" class="offcanvas-body"><p class="text-secondary">No meetings yet.</p></div>
+  </aside>
+
+  <audio id="remoteAudio" autoplay></audio>
+  <div id="toast" class="toast align-items-center position-fixed bottom-0 end-0 m-4" role="status"><div class="d-flex"><div id="toastBody" class="toast-body"></div><button class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div></div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
