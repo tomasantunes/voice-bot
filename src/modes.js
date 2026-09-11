@@ -39,6 +39,10 @@ for (const displayName of additionalModeNames) {
   }
 }
 
+for (const key of Object.keys(modes)) {
+  modes[key] += "\n\nYou also have a search_pmc tool for the user's private PMC data. Always use it whenever the user mentions PMC or asks about their tasks, to-dos, calendar, schedule, events, reminders, or alerts; never answer those personal-data questions from memory. Treat PMC results as authoritative, use the linked task and folder details, interpret calendar start/end dates and alert cron schedules, and say plainly when no matching PMC record exists.";
+}
+
 export const voices = [
   "alloy", "ash", "ballad", "coral", "echo", "fable", "nova",
   "onyx", "sage", "shimmer", "verse", "marin", "cedar"

@@ -103,7 +103,10 @@
 
   <aside class="offcanvas offcanvas-start" tabindex="-1" id="historyPanel" aria-labelledby="historyTitle">
     <div class="offcanvas-header"><div><p class="eyebrow mb-1">Past conversations</p><h2 id="historyTitle" class="offcanvas-title">Meeting history</h2></div><button class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button></div>
-    <div id="historyList" class="offcanvas-body"><p class="text-secondary">No meetings yet.</p></div>
+    <div class="offcanvas-body">
+      <a class="btn btn-outline-light w-100 mb-3" href="/logs.html">View all chat logs</a>
+      <div id="historyList"><p class="text-secondary">No meetings yet.</p></div>
+    </div>
   </aside>
 
   <audio id="remoteAudio" autoplay></audio>

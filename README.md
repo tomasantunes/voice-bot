@@ -15,6 +15,7 @@ The browser will request microphone permission when you start a meeting. In prod
 ## Environment
 
 - `OPENAI_API_KEY`: kept on the server and never sent to the browser.
+- `PMC_API_KEY`: sent only as the `Authorization` header when the server loads private PMC data.
 - `APP_USERNAME` / `APP_PASSWORD`: single-user app login.
 - `COOKIE_SECRET`: a random value of at least 32 characters.
 - `MYSQL_*`: database connection settings.
@@ -27,3 +28,4 @@ The browser will request microphone permission when you start a meeting. In prod
 - Transcript saves occur after OpenAI marks each user or assistant transcript complete.
 - Conversation audio is transported directly through the WebRTC session; this app stores text transcripts, not audio recordings.
 - The Realtime model automatically calls a server-side web-search tool for current, changing, niche, or explicitly requested online information.
+- After an authenticated app load, the server refreshes and caches PMC data. Voice questions about PMC, tasks, calendars, events, reminders, or alerts use a private server-side lookup; the API key and full dataset are never sent to the browser.

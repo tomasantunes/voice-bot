@@ -4,8 +4,9 @@ import express from "express";
 import helmet from "helmet";
 import mysql from "mysql2/promise";
 import { buildInstructions, modes, voices } from "./modes.js";
+import { loadPmcData, pmcStatus, searchPmc } from "./pmc.js";
 
-const required = ["OPENAI_API_KEY", "APP_USERNAME", "APP_PASSWORD", "COOKIE_SECRET", "MYSQL_DATABASE", "MYSQL_USER"];
+const required = ["OPENAI_API_KEY", "PMC_API_KEY", "APP_USERNAME", "APP_PASSWORD", "COOKIE_SECRET", "MYSQL_DATABASE", "MYSQL_USER"];
 const missing = required.filter((key) => !process.env[key]);
 if (missing.length) throw new Error(`Missing environment variables: ${missing.join(", ")}`);
 
@@ -93,8 +94,11 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/bootstrap", async (req, res, next) => {
   if (!authenticated(req)) return res.json({ authenticated: false });
   try {
-    const [rows] = await pool.execute("SELECT voice, mode FROM user_settings WHERE username = ?", [process.env.APP_USERNAME]);
-    res.json({ authenticated: true, voices, modes: Object.keys(modes), settings: rows[0] || { voice: "marin", mode: "default" } });
+    const [[rows]] = await Promise.all([
+      pool.execute("SELECT voice, mode FROM user_settings WHERE username = ?", [process.env.APP_USERNAME]),
+      loadPmcData({ force: true }).catch((error) => console.error("PMC bootstrap error", error.message))
+    ]);
+    res.json({ authenticated: true, voices, modes: Object.keys(modes), settings: rows[0] || { voice: "marin", mode: "default" }, pmc: pmcStatus() });
   } catch (error) { next(error); }
 });
 
@@ -121,7 +125,7 @@ app.post("/api/realtime", requireAuth, async (req, res, next) => {
     form.set("session", JSON.stringify({
       type: "realtime",
       model: process.env.OPENAI_REALTIME_MODEL || "gpt-realtime",
-      instructions: buildInstructions(mode),
+      instructions: `${buildInstructions(mode)}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Use this exact date when resolving relative dates such as today, tomorrow, or this week for PMC searches.`,
       tools: [{
         type: "function",
         name: "search_web",
@@ -135,6 +139,22 @@ app.post("/api/realtime", requireAuth, async (req, res, next) => {
             }
           },
           required: ["query"],
+          additionalProperties: false
+        }
+      }, {
+        type: "function",
+        name: "search_pmc",
+        description: "Search the user's private PMC data for tasks, folders/lists, daily to-dos, calendar events, and alerts. You MUST use this whenever the user mentions PMC or asks about their tasks, to-dos, calendar, schedule, events, reminders, or alerts. Use YYYY-MM-DD bounds for date-specific requests. Task dates are expiration_date, daily to-do dates are tdate, calendar dates are start_date/end_date, and alert schedules are cron_string values.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Specific words or names to find. Use an empty string for broad or date-based requests." },
+            categories: { type: "array", items: { type: "string", enum: ["all", "folders", "tasks", "calendar", "alerts"] }, description: "PMC collections relevant to the request." },
+            start_date: { type: "string", description: "Inclusive YYYY-MM-DD lower bound, or an empty string." },
+            end_date: { type: "string", description: "Inclusive YYYY-MM-DD upper bound, or an empty string." },
+            include_done: { type: "boolean", description: "Whether completed tasks should be included." }
+          },
+          required: ["query", "categories", "start_date", "end_date", "include_done"],
           additionalProperties: false
         }
       }],
@@ -171,6 +191,18 @@ app.post("/api/realtime", requireAuth, async (req, res, next) => {
       return res.status(502).json({ error: "Could not start the OpenAI voice session" });
     }
     res.type("application/sdp").set("X-Meeting-Id", String(meeting.insertId)).send(answer);
+  } catch (error) { next(error); }
+});
+
+app.post("/api/pmc-search", requireAuth, async (req, res, next) => {
+  const { query, categories, start_date: startDate, end_date: endDate, include_done: includeDone } = req.body || {};
+  const validDate = (value) => value === "" || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value));
+  const validCategories = new Set(["all", "folders", "tasks", "calendar", "alerts"]);
+  if (typeof query !== "string" || query.length > 500 || !Array.isArray(categories) || categories.length > 5 || categories.some((category) => !validCategories.has(category)) || !validDate(startDate) || !validDate(endDate) || typeof includeDone !== "boolean") {
+    return res.status(400).json({ error: "Invalid PMC search" });
+  }
+  try {
+    res.json(await searchPmc({ query, categories, startDate, endDate, includeDone }));
   } catch (error) { next(error); }
 });
 
@@ -246,6 +278,29 @@ app.get("/api/meetings", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.execute("SELECT id, voice, mode, started_at, ended_at FROM meetings WHERE username = ? ORDER BY started_at DESC LIMIT 20", [process.env.APP_USERNAME]);
     res.json(rows);
+  } catch (error) { next(error); }
+});
+
+app.get("/api/chat-logs", requireAuth, async (req, res, next) => {
+  const page = Number(req.query.page || 1);
+  const pageSize = 10;
+  if (!Number.isSafeInteger(page) || page < 1) return res.status(400).json({ error: "Invalid page" });
+  try {
+    const [[{ total }], [items]] = await Promise.all([
+      pool.execute("SELECT COUNT(*) AS total FROM meetings WHERE username = ?", [process.env.APP_USERNAME]),
+      pool.execute(
+        `SELECT mtg.id, mtg.voice, mtg.mode, mtg.started_at, mtg.ended_at, COUNT(msg.id) AS message_count
+         FROM meetings mtg
+         LEFT JOIN messages msg ON msg.meeting_id = mtg.id
+         WHERE mtg.username = ?
+         GROUP BY mtg.id, mtg.voice, mtg.mode, mtg.started_at, mtg.ended_at
+         ORDER BY mtg.started_at DESC
+         LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`,
+        [process.env.APP_USERNAME]
+      )
+    ]);
+    const totalItems = Number(total);
+    res.json({ items, page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) });
   } catch (error) { next(error); }
 });
 

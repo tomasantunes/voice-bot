@@ -182,6 +182,29 @@ async function runWebSearch(callId, argumentsJson) {
   setStatus("Thinking…", "live");
 }
 
+async function runPmcSearch(callId, argumentsJson) {
+  if (!callId || state.handledToolCalls.has(callId)) return;
+  state.handledToolCalls.add(callId);
+  state.toolCallInFlight = true;
+  setStatus("Checking PMC…", "live");
+  let output;
+  try {
+    const parsed = JSON.parse(argumentsJson || "{}");
+    const { body } = await api("/api/pmc-search", { method: "POST", body: JSON.stringify(parsed) });
+    output = JSON.stringify({ ok: true, ...body });
+  } catch (error) {
+    output = JSON.stringify({ ok: false, error: error.message || "PMC lookup failed" });
+  }
+  state.toolCallInFlight = false;
+  if (state.dc?.readyState !== "open") return;
+  state.dc.send(JSON.stringify({
+    type: "conversation.item.create",
+    item: { type: "function_call_output", call_id: callId, output }
+  }));
+  state.dc.send(JSON.stringify({ type: "response.create", response: { output_modalities: ["audio"] } }));
+  setStatus("Thinking…", "live");
+}
+
 function microphoneConstraints() {
   const supported = navigator.mediaDevices.getSupportedConstraints?.() || {};
   const audio = {
@@ -306,6 +329,9 @@ function handleRealtime(event) {
   }
   if (type === "response.function_call_arguments.done" && event.name === "search_web") {
     runWebSearch(event.call_id, event.arguments);
+  }
+  if (type === "response.function_call_arguments.done" && event.name === "search_pmc") {
+    runPmcSearch(event.call_id, event.arguments);
   }
   if (type === "response.output_audio_transcript.delta" || type === "response.audio_transcript.delta") {
     const id = event.item_id || event.response_id || "assistant-live";

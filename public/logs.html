@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b10">
+  <title>Chat logs · Voice Bot</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="logs-shell">
+    <nav class="topbar px-0">
+      <a class="brand" href="/">
+        <span class="brand-mark brand-mark-sm" aria-hidden="true"><span></span></span>
+        <span>Voice Bot</span>
+      </a>
+      <a class="btn btn-outline-light rounded-pill px-4" href="/">Back to meeting</a>
+    </nav>
+
+    <header class="logs-header">
+      <p class="eyebrow mb-2">Past conversations</p>
+      <h1 class="display-5 fw-semibold mb-2">Chat logs</h1>
+      <p id="logsSummary" class="text-secondary mb-0">Loading conversations…</p>
+    </header>
+
+    <section id="logsList" class="logs-list" aria-live="polite"></section>
+    <nav id="pagination" class="logs-pagination" aria-label="Chat log pages"></nav>
+  </main>
+  <script type="module" src="/logs.js"></script>
+</body>
+</html>
