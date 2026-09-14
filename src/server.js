@@ -195,7 +195,7 @@ app.post("/api/realtime", requireAuth, async (req, res, next) => {
 });
 
 app.post("/api/pmc-search", requireAuth, async (req, res, next) => {
-  const { query, categories, start_date: startDate, end_date: endDate, include_done: includeDone } = req.body || {};
+  const { query = "", categories = ["all"], start_date: startDate = "", end_date: endDate = "", include_done: includeDone = false } = req.body || {};
   const validDate = (value) => value === "" || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value));
   const validCategories = new Set(["all", "folders", "tasks", "calendar", "alerts"]);
   if (typeof query !== "string" || query.length > 500 || !Array.isArray(categories) || categories.length > 5 || categories.some((category) => !validCategories.has(category)) || !validDate(startDate) || !validDate(endDate) || typeof includeDone !== "boolean") {
@@ -203,7 +203,10 @@ app.post("/api/pmc-search", requireAuth, async (req, res, next) => {
   }
   try {
     res.json(await searchPmc({ query, categories, startDate, endDate, includeDone }));
-  } catch (error) { next(error); }
+  } catch (error) {
+    console.error("PMC search error", error);
+    res.status(503).json({ error: "PMC is unavailable; check the server log and PMC_API_KEY" });
+  }
 });
 
 function responseText(response) {

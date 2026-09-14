@@ -194,6 +194,8 @@ async function runPmcSearch(callId, argumentsJson) {
     output = JSON.stringify({ ok: true, ...body });
   } catch (error) {
     output = JSON.stringify({ ok: false, error: error.message || "PMC lookup failed" });
+    console.error("PMC lookup failed", error);
+    showToast(error.message || "PMC lookup failed");
   }
   state.toolCallInFlight = false;
   if (state.dc?.readyState !== "open") return;

@@ -40,7 +40,7 @@ for (const displayName of additionalModeNames) {
 }
 
 for (const key of Object.keys(modes)) {
-  modes[key] += "\n\nYou also have a search_pmc tool for the user's private PMC data. Always use it whenever the user mentions PMC or asks about their tasks, to-dos, calendar, schedule, events, reminders, or alerts; never answer those personal-data questions from memory. Treat PMC results as authoritative, use the linked task and folder details, interpret calendar start/end dates and alert cron schedules, and say plainly when no matching PMC record exists.";
+  modes[key] += "\n\nYou also have a search_pmc tool for the user's private PMC data. Always use it whenever the user mentions PMC or asks about their tasks, to-dos, folders, calendar, schedule, events, reminders, or alerts; never answer those personal-data questions from memory. For folder requests, search the folders category with an empty query to list names. For tasks in a named folder or with a star, search tasks with the folder name and star wording, omitting generic words such as 'tasks' and 'folder'. Treat successful PMC results as authoritative and say plainly when no matching record exists. If the tool returns ok: false, say that access failed and do not claim to know what personal records are available.";
 }
 
 export const voices = [

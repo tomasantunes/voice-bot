@@ -87,7 +87,7 @@ function alertDatesInRange(cronString, startDate, endDate) {
 
 const QUERY_STOP_WORDS = new Set([
   "a", "about", "alert", "alerts", "all", "an", "and", "any", "are", "calendar", "do", "event", "events", "for", "from", "have", "i", "in", "is", "me", "my", "of", "on", "pmc", "reminder", "reminders", "show", "task", "tasks", "the", "to", "what", "when", "with",
-  "alerta", "alertas", "as", "calendario", "compromissos", "de", "do", "dos", "em", "evento", "eventos", "meu", "meus", "minha", "minhas", "o", "os", "para", "que", "tarefas", "tenho"
+  "alerta", "alertas", "as", "calendario", "compromissos", "com", "de", "da", "das", "do", "dos", "em", "evento", "eventos", "eu", "estrela", "estrelada", "estreladas", "estrelado", "estrelados", "favorita", "favoritas", "favorito", "favoritos", "na", "nas", "no", "nos", "pasta", "pastas", "meu", "meus", "minha", "minhas", "o", "os", "para", "quais", "que", "sao", "tarefas", "tenho"
 ]);
 
 function normalized(value) {
@@ -102,6 +102,12 @@ function matchesTerms(value, terms) {
   if (!terms.length) return true;
   const text = normalized(Object.values(value).filter((field) => typeof field === "string" || typeof field === "number").join(" "));
   return terms.every((term) => text.includes(term));
+}
+
+function isStarred(value) {
+  return ["is_starred", "is_star", "star", "starred", "favorite", "is_favorite"].some((key) =>
+    value[key] === true || value[key] === 1 || value[key] === "1"
+  );
 }
 
 function selectCategories(categories) {
@@ -119,6 +125,7 @@ export async function searchPmc({ query = "", categories = ["all"], startDate = 
   const data = cachedData || await loadPmcData();
   const selected = selectCategories(categories);
   const terms = queryTerms(query);
+  const starredOnly = /\b(estrela|estrelad[ao]s?|favorit[ao]s?|starred|favorite)\b/u.test(normalized(query));
   const foldersById = new Map(data.folders.map((folder) => [folder.id, folder]));
   const tasksById = new Map(data.tasks.map((task) => [task.id, task]));
   const results = [];
@@ -129,17 +136,17 @@ export async function searchPmc({ query = "", categories = ["all"], startDate = 
   if (selected.has("tasks")) {
     for (const task of data.tasks) {
       const enriched = { ...task, folder_name: foldersById.get(task.folder_id)?.name || null };
-      if ((includeDone || !Number(task.is_done)) && inDateRange(task.expiration_date, startDate, endDate) && matchesTerms(enriched, terms)) results.push({ kind: "task", ...enriched });
+      if ((includeDone || !Number(task.is_done)) && (!starredOnly || isStarred(task)) && inDateRange(task.expiration_date, startDate, endDate) && matchesTerms(enriched, terms)) results.push({ kind: "task", ...enriched });
     }
     for (const task of data.daily_todos_tasks) {
       const enriched = { ...task, folder_name: foldersById.get(task.folder_id)?.name || null };
-      if ((includeDone || !Number(task.is_done)) && inDateRange(task.tdate, startDate, endDate) && matchesTerms(enriched, terms)) results.push({ kind: "daily_todo", ...enriched });
+      if ((includeDone || !Number(task.is_done)) && (!starredOnly || isStarred(task)) && inDateRange(task.tdate, startDate, endDate) && matchesTerms(enriched, terms)) results.push({ kind: "daily_todo", ...enriched });
     }
     if (startDate || endDate || terms.length) {
       for (const check of data.recurrent_checks) {
         const task = tasksById.get(check.task_id);
         const enriched = { ...check, task_description: task?.description || null, folder_name: task ? foldersById.get(task.folder_id)?.name || null : null };
-        if ((includeDone || !Number(check.is_done)) && !Number(check.is_cancelled) && inDateRange(check.date, startDate, endDate) && matchesTerms(enriched, terms)) results.push({ kind: "recurrent_check", ...enriched });
+        if ((includeDone || !Number(check.is_done)) && !Number(check.is_cancelled) && (!starredOnly || (task && isStarred(task))) && inDateRange(check.date, startDate, endDate) && matchesTerms(enriched, terms)) results.push({ kind: "recurrent_check", ...enriched });
       }
     }
   }
