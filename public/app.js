@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 const VOICE_PROFILE_KEY = "one-on-one-voice-profile";
-const state = { pc: null, dc: null, stream: null, meetingId: null, settings: null, userText: new Map(), assistantText: new Map(), handledToolCalls: new Set(), toolCallInFlight: false, lastLanguage: "US English", started: false, voiceProfile: null, voiceProfileEnabled: false, audioContext: null, analyser: null, analyserTimer: null, capturingVoice: false, voiceFrames: [], pendingVoiceMatch: true, assistantSpeaking: false, sawOutputBufferEvent: false, microphoneFallbackTimer: null };
+const state = { pc: null, dc: null, stream: null, meetingId: null, settings: null, userText: new Map(), assistantText: new Map(), handledToolCalls: new Set(), toolCallInFlight: false, started: false, voiceProfile: null, voiceProfileEnabled: false, audioContext: null, analyser: null, analyserTimer: null, capturingVoice: false, voiceFrames: [], pendingVoiceMatch: true, assistantSpeaking: false, sawOutputBufferEvent: false, microphoneFallbackTimer: null };
 const ui = {
   loginView: $("#loginView"), appView: $("#appView"), loginForm: $("#loginForm"), loginError: $("#loginError"),
   settingsForm: $("#settingsForm"), voice: $("#voiceSelect"), mode: $("#modeSelect"), start: $("#startButton"), end: $("#endButton"),
@@ -127,32 +127,11 @@ async function enrollVoiceProfile() {
   finally { stopVoiceAnalysis(); stream?.getTracks().forEach((track) => track.stop()); ui.enrollVoice.disabled = state.started; }
 }
 
-function responseLanguage(transcript) {
-  const words = transcript.toLocaleLowerCase().match(/[\p{L}']+/gu) || [];
-  const english = new Set(["hello", "hi", "hey", "how", "are", "you", "your", "what", "where", "when", "why", "who", "can", "could", "would", "please", "thanks", "thank", "the", "and", "is", "do", "does", "did", "i", "i'm", "we", "it", "this", "that", "with", "for", "yes", "okay", "right"]);
-  const portuguese = new Set(["olá", "ola", "bom", "boa", "como", "estás", "estas", "está", "esta", "estou", "tudo", "bem", "falar", "falas", "português", "portugues", "obrigado", "obrigada", "quê", "que", "não", "nao", "sim", "uma", "para", "com", "eu", "tu", "ele", "ela", "nós", "nos", "isto", "isso", "hoje", "ontem", "amanhã", "amanha", "quero", "podes", "pode"]);
-  let englishScore = words.reduce((score, word) => score + Number(english.has(word)), 0);
-  let portugueseScore = words.reduce((score, word) => score + Number(portuguese.has(word)), 0);
-  if (/[ãõçáàâéêíóôú]/i.test(transcript)) portugueseScore += 3;
-  if (/(?:ção|ções|mente|nh[ao]|lh[ao])\b/i.test(transcript)) portugueseScore += 2;
-  if (/\b(?:the|this|that|what|how|why|would|could|should)\b/i.test(transcript)) englishScore += 2;
-  if (portugueseScore > englishScore) state.lastLanguage = "European Portuguese";
-  if (englishScore > portugueseScore) state.lastLanguage = "US English";
-  return state.lastLanguage;
-}
-
-function requestResponse(transcript) {
+function requestResponse() {
   if (state.dc?.readyState !== "open") return;
-  const language = responseLanguage(transcript);
-  const languageRule = language === "European Portuguese"
-    ? 'Reply only in native European Portuguese (pt-PT), using Portugal pronunciation, vocabulary, grammar, and forms of address. Never use Brazilian Portuguese. Use "tu" naturally rather than "você".'
-    : "Reply only in natural US English, using American vocabulary, spelling, and pronunciation.";
   state.dc.send(JSON.stringify({
     type: "response.create",
-    response: {
-      output_modalities: ["audio"],
-      instructions: `The user's newest complete utterance is: ${JSON.stringify(transcript)}. Answer that utterance directly and prioritize it over the previous subject. If it introduces a new question or topic, switch to it immediately. Use earlier turns only when the newest utterance clearly refers back to them. Do not repeat or continue your previous answer unless the user asked you to. ${languageRule}`
-    }
+    response: { output_modalities: ["audio"] }
   }));
 }
 
@@ -322,7 +301,7 @@ function handleRealtime(event) {
       return;
     }
     if (state.pendingVoiceMatch) {
-      addMessage("user", text, event.item_id); persist("user", text, event.item_id); requestResponse(text);
+      addMessage("user", text, event.item_id); persist("user", text, event.item_id); requestResponse();
     } else {
       addMessage("user", `${text} (ignored: voice did not match)`, event.item_id);
       discardConversationItem(event.item_id, false);
@@ -385,7 +364,7 @@ async function closeMedia() {
 }
 
 async function endMeeting() {
-  const id = state.meetingId; state.started = false; state.meetingId = null; state.lastLanguage = "US English"; await closeMedia();
+  const id = state.meetingId; state.started = false; state.meetingId = null; await closeMedia();
   if (id) api(`/api/meetings/${id}/end`, { method: "POST", body: "{}" }).catch(console.error);
   ui.start.classList.remove("d-none"); ui.end.classList.add("d-none"); ui.voice.disabled = false; ui.mode.disabled = false;
   updateVoiceProfileUi();
